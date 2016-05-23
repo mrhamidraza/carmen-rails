@@ -27,6 +27,7 @@ module ActionView
         tag = instance_tag(object, method, self, options)
         tag.to_region_select_tag(parent_region, options, html_options)
       end
+      alias_method :metroarea_select, :subregion_select
 
       # Generate select and country option tags for the given object and method. A
       # common use of this would be to allow users to select a state subregion within
@@ -158,6 +159,7 @@ module ActionView
                         "id" => sanitize_to_id(name)}.update(html_options.stringify_keys)
         content_tag(:select, opts, html_options)
       end
+      alias_method :metroarea_select_tag, :subregion_select_tag
 
       private
 
