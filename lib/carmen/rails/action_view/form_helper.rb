@@ -25,6 +25,23 @@ module ActionView
       #   subregion_select(@object, :region, {priority: ['US', 'CA']}, class: 'region')
       #
       # Returns an `html_safe` string containing the HTML for a select element.
+      def country_name(country_code)
+        Country.coded(country_code).name
+      end
+
+      def state_name(state_code)
+        parent_code = state_code.split('-')[0]
+        child_code = state_code.split('-')[1]
+        Country.coded(parent_code).subregions.coded(child_code).name
+      end
+
+      def metro_area_name(metro_area_code)
+        grand_parent = metro_area_code.split('-')[0]
+        parent_code = metro_area_code.split('-')[1]
+        child_code = metro_area_code.split('-')[2]
+        Country.coded(grand_parent).subregions.coded(parent_code).subregions.coded(child_code).name
+      end
+
       def subregion_select(object, method, parent_region_or_code, options={}, html_options={})
         parent_region = determine_parent(parent_region_or_code)
         tag = instance_tag(object, method, self, options)
@@ -88,7 +105,7 @@ module ActionView
       #   region_options_for_select(@region.subregions, 'US', priority: ['US', 'CA'])
       #
       # Returns an `html_safe` string containing option tags.
-      def region_options_for_select(regions, selected=nil, options={})
+      def region_options_for_select(regions, selected=nil, options={}, typed=nil)
         options.stringify_keys!
         priority_region_codes = options['priority'] || []
         region_options = ""
@@ -113,7 +130,11 @@ module ActionView
           end
         end
 
-        main_options = regions.map { |r| [r.name, r.parent.code.nil? ? r.code : "#{r.parent.code}-#{r.code}"] }
+        if typed.nil?
+          main_options = regions.map { |r| [r.name, r.parent.code.nil? ? r.code : "#{r.parent.code}-#{r.code}"] }
+        else
+          main_options = regions.map { |r| [r.name, "#{r.parent.parent.code}-#{r.parent.code}-#{r.code}"]}
+        end
         main_options.sort!{|a, b| a.first.to_s <=> b.first.to_s}
         main_options.unshift [options['prompt'], ''] if options['prompt']
 
@@ -169,7 +190,6 @@ module ActionView
                         "id" => sanitize_to_id(name)}.update(html_options.stringify_keys)
         content_tag(:select, opts, html_options)
       end
-      alias_method :metroarea_select_tag, :subregion_select_tag
 
       private
 
@@ -219,9 +239,8 @@ module ActionView
 
             value = options[:selected] ? options[:selected] : value(object)
             priority_regions = options[:priority] || []
-            subregions = typed.nil? ? parent_region.subregions : parent_region.subregions.typed(typed)
-            opts = add_options(region_options_for_select(subregions, value,
-                                                         :priority => priority_regions),
+            subregions = typed.nil? ? parent_region.subregions : parent_region.metroareas
+            opts = add_options(region_options_for_select(subregions, value, {:priority => priority_regions}, typed),
                                options, value)
             select = content_tag("select", opts, html_options)
             if html_options["multiple"] && options.fetch(:include_hidden, true)
